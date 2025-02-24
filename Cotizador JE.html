@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Cotizaciones</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        @media print {
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="container mx-auto bg-white p-6 rounded-lg shadow-lg">
+        <h1 class="text-3xl font-bold mb-6 text-center">Generador de Cotizaciones</h1>
+        <div class="mb-6">
+            <label class="block text-gray-700">Nombre del Cliente:</label>
+            <input id="clientName" type="text" class="w-full p-2 border border-gray-300 rounded-lg">
+        </div>
+        <div class="mb-6">
+            <label class="block text-gray-700">Fecha de la Cotización:</label>
+            <input id="quoteDate" type="date" class="w-full p-2 border border-gray-300 rounded-lg">
+        </div>
+        <div class="mb-6">
+            <label class="block text-gray-700">Notas o Condiciones Especiales:</label>
+            <textarea id="notes" class="w-full p-2 border border-gray-300 rounded-lg"></textarea>
+        </div>
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold mb-4">Líneas de Productos/Servicios</h2>
+            <div id="itemsContainer">
+                <!-- Líneas de productos/servicios se añadirán aquí -->
+            </div>
+            <button id="addItemBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded no-print">
+                Añadir Línea
+            </button>
+        </div>
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold mb-4">Resumen</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-gray-700">Subtotal:</p>
+                    <p id="subtotal" class="text-2xl font-bold">$0.00</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-gray-700">IVA (16%):</p>
+                    <p id="iva" class="text-2xl font-bold">$0.00</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-gray-700">Total:</p>
+                    <p id="total" class="text-2xl font-bold">$0.00</p>
+                </div>
+            </div>
+        </div>
+        <div class="flex justify-end space-x-4 no-print">
+            <button id="printBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                Imprimir Cotización
+            </button>
+            <button id="generatePdfBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Generar PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- Plantilla para una línea de producto/servicio -->
+    <template id="itemTemplate">
+        <div class="item mb-4 p-4 border border-gray-300 rounded-lg">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-gray-700">Nombre:</label>
+                    <input type="text" class="item-name w-full p-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-gray-700">Cantidad:</label>
+                    <input type="number" class="item-quantity w-full p-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-gray-700">Precio Unitario:</label>
+                    <input type="number" class="item-price w-full p-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="flex items-end">
+                    <label class="flex items-center">
+                        <input type="checkbox" class="item-iva mr-2">
+                        Aplicar IVA
+                    </label>
+                    <button class="delete-item bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded ml-auto">
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const itemsContainer = document.getElementById('itemsContainer');
+            const addItemBtn = document.getElementById('addItemBtn');
+            const subtotalElement = document.getElementById('subtotal');
+            const ivaElement = document.getElementById('iva');
+            const totalElement = document.getElementById('total');
+            const printBtn = document.getElementById('printBtn');
+            const generatePdfBtn = document.getElementById('generatePdfBtn');
+            const itemTemplate = document.getElementById('itemTemplate').content;
+
+            // Añadir nueva línea de producto/servicio
+            addItemBtn.addEventListener('click', () => {
+                const newItem = document.importNode(itemTemplate, true);
+                itemsContainer.appendChild(newItem);
+                updateTotals();
+            });
+
+            // Eliminar línea de producto/servicio
+            itemsContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-item')) {
+                    e.target.closest('.item').remove();
+                    updateTotals();
+                }
+            });
+
+            // Actualizar totales al cambiar valores
+            itemsContainer.addEventListener('input', () => {
+                updateTotals();
+            });
+
+            // Calcular subtotal, IVA y total
+            function updateTotals() {
+                let subtotal = 0;
+                let iva = 0;
+
+                document.querySelectorAll('.item').forEach(item => {
+                    const quantity = parseFloat(item.querySelector('.item-quantity').value) || 0;
+                    const price = parseFloat(item.querySelector('.item-price').value) || 0;
+                    const applyIva = item.querySelector('.item-iva').checked;
+
+                    const lineTotal = quantity * price;
+                    subtotal += lineTotal;
+
+                    if (applyIva) {
+                        iva += lineTotal * 0.16;
+                    }
+                });
+
+                const total = subtotal + iva;
+
+                subtotalElement.textContent = `$${subtotal.toFixed(2)}`;
+                ivaElement.textContent = `$${iva.toFixed(2)}`;
+                totalElement.textContent = `$${total.toFixed(2)}`;
+            }
+
+            // Imprimir cotización
+            printBtn.addEventListener('click', () => {
+                window.print();
+            });
+
+            // Generar PDF (usando una librería externa como jsPDF)
+            generatePdfBtn.addEventListener('click', () => {
+                alert("Generar PDF no está implementado en este ejemplo. Puedes usar una librería como jsPDF.");
+            });
+        });
+    </script>
+</body>
+</html>
